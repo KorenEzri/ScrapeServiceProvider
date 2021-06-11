@@ -1,5 +1,12 @@
+import { attr } from 'cheerio/lib/api/attributes';
 import { Page, Browser } from 'puppeteer';
-import { startBrowser, scrapeAll, scrape, getResult } from './scrape.util';
+import {
+  startBrowser,
+  scrapeAll,
+  scrape,
+  getResult,
+  generalScrape,
+} from './scrape.util';
 let result: any[] = [];
 export interface Options {
   headless?: boolean;
@@ -51,7 +58,9 @@ export const scrapeWebsite = async (options: Options) => {
       console.log(`Navigating to ${this.url}...`);
       if (this.url)
         await page.goto(this.url, { waitUntil: 'networkidle2', timeout: 0 });
-      await scrape(page, options, browser);
+      secondselector
+        ? await scrape(page, options, browser)
+        : await generalScrape(selector, page, attribute);
       await page.close();
       result = getResult();
     },

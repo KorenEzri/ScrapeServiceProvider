@@ -91,23 +91,48 @@ export const generalScrape = async (
 ) => {
   switch (attribute) {
     case 'textContent':
-      return await pageInstance.$$eval(selector, (as: any[]) =>
-        as.map((a: any) => a.textContent),
+      result.push(
+        await pageInstance.$$eval(selector, (as: any[]) =>
+          as.map((a: any) => a.textContent),
+        ),
       );
+      break;
     case 'innerText':
-      return await pageInstance.$$eval(selector, (as: any[]) =>
-        as.map((a: any) => a.innerText),
+      result.push(
+        await pageInstance.$$eval(selector, (as: any[]) =>
+          as.map((a: any) => a.innerText),
+        ),
       );
+      break;
+    case 'href':
+      result.push(
+        await pageInstance.$$eval(selector, (as: any[]) =>
+          as.map((a: any) => a.href),
+        ),
+      );
+      break;
+    case 'src':
+      result.push(
+        await pageInstance.$$eval(selector, (as: any[]) =>
+          as.map((a: any) => a.src),
+        ),
+      );
+      break;
     default:
       if (attribute) {
-        return await pageInstance.$$eval(selector, (as: any[]) =>
-          as.map((a: any) => a.getAttribute(attribute)),
+        result.push(
+          await pageInstance.$$eval(selector, (as: any[]) =>
+            as.map((a: any) => (a[attribute] ? a[attribute] : a)),
+          ),
         );
       } else {
-        return await pageInstance.$$eval(selector, (as: any[]) =>
-          as.map((a: any) => a),
+        result.push(
+          await pageInstance.$$eval(selector, (as: any[]) =>
+            as.map((a: any) => a),
+          ),
         );
       }
+      break;
   }
 };
 export const scrape = async (page: Page, options: any, browser: Browser) => {
@@ -119,6 +144,8 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
     delay,
     secondselector,
   } = options;
+  console.log(options);
+
   let parserFunc: any;
   if (parser?.length > 0) {
     parserFunc = eval(parser);
@@ -162,9 +189,5 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
         console.log(err.message);
       }
     }
-  } else {
-    const res = await getPageData(page, selector, parserFunc);
-    result.push(res);
-    await page.close();
   }
 };

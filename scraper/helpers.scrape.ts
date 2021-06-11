@@ -3,6 +3,7 @@ export const getPageData = async (
   page: Page,
   secondselector: string,
   parser?: any,
+  close?: boolean,
 ) => {
   const element = await page.waitForSelector(secondselector);
   let data: any = await (
@@ -12,5 +13,7 @@ export const getPageData = async (
   if (parser) {
     data = parser(data);
   }
+
+  if (close) await page.close();
   return data;
 };
