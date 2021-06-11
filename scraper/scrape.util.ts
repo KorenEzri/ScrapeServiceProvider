@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { getPageData } from './helpers.scrape';
+let result: any = [];
 export const startBrowser = async (
   headless: boolean,
   withProxy: boolean,
@@ -34,6 +35,37 @@ export const startBrowser = async (
     console.log('Could not create a browser instance => : ', err);
   }
 };
+export const getResult = () => {
+  const res = result;
+  result = [];
+  return res;
+};
+const getLinkData = async (
+  page: Page,
+  selector: string,
+  secondselector: string,
+  parserFunc: any,
+  browser: Browser,
+) => {
+  let links = await page.$$(selector);
+  for (let linkElem of links) {
+    try {
+      const link = await (await linkElem.getProperty('href'))?.jsonValue();
+      console.log('Opening a new page..');
+      const page = await browser.newPage();
+      if (link && typeof link === 'string') await page.goto(link);
+      const res = await getPageData(page, secondselector, parserFunc);
+      if (res === false) {
+        break;
+      }
+      result.push(res);
+      await page.close();
+    } catch (err) {
+      console.log(err.message);
+    }
+  }
+};
+
 export const scrapeAll = async (
   scraperObject: { scraper: (arg0: any) => any },
   browserInstance: any,
@@ -78,39 +110,61 @@ export const generalScrape = async (
       }
   }
 };
-export const scrape = async (
-  pageInstance: Page,
-  options: any,
-  browserInstance: Browser,
-) => {
-  const { selector, attribute, extraPages, parser, delay, secondselector } =
-    options;
+export const scrape = async (page: Page, options: any, browser: Browser) => {
+  result = [];
+  const {
+    data: { selector, attribute },
+    extraPages,
+    parser,
+    delay,
+    secondselector,
+  } = options;
   let parserFunc: any;
   if (parser?.length > 0) {
     parserFunc = eval(parser);
   }
   if (secondselector?.length > 0) {
-    let tagArray = await pageInstance.$$(selector);
-    for (let elemTag of tagArray) {
+    let links = await page.$$(selector);
+    for (let linkElem of links) {
       try {
-        let link;
-        link = await (await elemTag.getProperty('href'))?.jsonValue();
-        const page = await browserInstance.newPage();
+        const link = await (await linkElem.getProperty('href'))?.jsonValue();
+        console.log('Opening a new page..');
+        const page = await browser.newPage();
         if (link && typeof link === 'string') await page.goto(link);
-        const res = await getPageData(
-          pageInstance,
-          secondselector,
-          attribute,
-          parserFunc,
-        );
+        const res = await getPageData(page, secondselector, parserFunc);
         if (res === false) {
-          console.log('break');
           break;
+        }
+        result.push(res);
+        if (extraPages) {
+          for (let i = 1; i <= extraPages; i++) {
+            console.log(`Opening new page number ${i}..`);
+            let links2 = await page.$$(selector);
+            for (let linkElem2 of links2) {
+              const link2 = await (
+                await linkElem2.getProperty('href')
+              )?.jsonValue();
+              const page2 = await browser.newPage();
+              if (link2 && typeof link2 === 'string') await page.goto(link2);
+              const res2 = await getLinkData(
+                page2,
+                selector,
+                secondselector,
+                parserFunc,
+                browser,
+              );
+              result.push({ depth: i, data: res2 });
+            }
+          }
         }
         await page.close();
       } catch (err) {
         console.log(err.message);
       }
     }
+  } else {
+    const res = await getPageData(page, selector, parserFunc);
+    result.push(res);
+    await page.close();
   }
 };

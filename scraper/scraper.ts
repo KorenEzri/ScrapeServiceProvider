@@ -1,5 +1,6 @@
 import { Page, Browser } from 'puppeteer';
-import { startBrowser, scrapeAll, scrape } from './scrape.util';
+import { startBrowser, scrapeAll, scrape, getResult } from './scrape.util';
+let result: any[] = [];
 export interface Options {
   headless?: boolean;
   url?: string;
@@ -32,7 +33,7 @@ export const scrapeWebsite = async (options: Options) => {
     data: { selector, attribute },
   } = options;
   if (!withProxy) withProxy = false;
-  if (headless === undefined) headless = false;
+  if (headless === undefined) headless = true;
   const browserInstance = await startBrowser(headless, withProxy, proxyUrl);
   const scrapeOptions = {
     url,
@@ -50,11 +51,11 @@ export const scrapeWebsite = async (options: Options) => {
       console.log(`Navigating to ${this.url}...`);
       if (this.url)
         await page.goto(this.url, { waitUntil: 'networkidle2', timeout: 0 });
-      const response = await scrape(page, options, browser);
+      await scrape(page, options, browser);
       await page.close();
-      console.log('Page closed.');
-      return response;
+      result = getResult();
     },
   };
   await scrapeAll(scraperObject, browserInstance);
+  return result;
 };

@@ -28,10 +28,11 @@ scrapeRouter.post('/scrape', async (req: Request, res: Response) => {
   };
   try {
     const scraperResponse = await scrapeWebsite(scrapeOptions);
+    console.log(scraperResponse);
+    res.status(200).send(scraperResponse);
   } catch (err) {
     Logger.error(err);
   }
-  res.status(200).send('OK');
 });
 
 export default scrapeRouter;
