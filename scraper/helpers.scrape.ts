@@ -13,7 +13,6 @@ export const getPageData = async (
   if (parser) {
     data = parser(data);
   }
-
   if (close) await page.close();
   return data;
 };

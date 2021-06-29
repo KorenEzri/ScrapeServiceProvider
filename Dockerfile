@@ -15,6 +15,8 @@ ADD . /app
 # TypeScript
 RUN npm run build
 
+EXPOSE 8123
+
 WORKDIR /app
 
 CMD ["npm","start"]

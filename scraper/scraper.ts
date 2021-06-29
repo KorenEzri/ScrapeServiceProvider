@@ -20,6 +20,7 @@ export interface Options {
   delay?: number;
   extraPages?: number;
   parser?: string;
+  limit?: number;
   data: {
     selector: string;
     attribute?: string;
@@ -37,6 +38,7 @@ export const scrapeWebsite = async (options: Options) => {
     delay,
     extraPages,
     parser,
+    limit,
     data: { selector, attribute },
   } = options;
   if (!withProxy) withProxy = false;
@@ -47,6 +49,7 @@ export const scrapeWebsite = async (options: Options) => {
     selector,
     attribute,
     extraPages,
+    limit,
     parser,
     secondselector,
     delay,
@@ -55,14 +58,17 @@ export const scrapeWebsite = async (options: Options) => {
     url: url,
     async scraper(browser: Browser) {
       let page = await browser.newPage();
-      console.log(`Navigating to ${this.url}...`);
-      if (this.url)
-        await page.goto(this.url, { waitUntil: 'networkidle2', timeout: 0 });
-      secondselector
-        ? await scrape(page, options, browser)
-        : await generalScrape(selector, page, attribute);
-      await page.close();
-      result = getResult();
+      try {
+        console.log(`Navigating to ${this.url}...`);
+        if (this.url)
+          await page.goto(this.url, { waitUntil: 'networkidle2', timeout: 0 });
+        secondselector
+          ? await scrape(page, options, browser)
+          : await generalScrape(selector, page, attribute);
+        result = await getResult(page);
+      } catch ({ message }) {
+        console.log(message);
+      }
     },
   };
   await scrapeAll(scraperObject, browserInstance);

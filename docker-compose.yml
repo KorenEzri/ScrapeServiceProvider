@@ -6,12 +6,14 @@ services:
     container_name: scraper-tor-browser
     ports:
       - '9001:9001'
-      - '9051:9051'
+      - '9053:9053'
     networks:
       - webappnetwork
   web:
     container_name: scrapeServiceProvider
     build: .
+    ports:
+      - '8123:8123'
     depends_on:
       - tor-browser
     networks:

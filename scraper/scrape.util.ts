@@ -7,7 +7,7 @@ export const startBrowser = async (
   proxyUrl?: string,
 ) => {
   let browser: puppeteer.Browser;
-  const defaultProxyUrl = '9050';
+  const defaultProxyUrl = '9053';
   const runWithProxy = [
     `--proxy-server=socks5://127.0.0.1:${proxyUrl || defaultProxyUrl}`,
     '--disable-setuid-sandbox',
@@ -35,9 +35,10 @@ export const startBrowser = async (
     console.log('Could not create a browser instance => : ', err);
   }
 };
-export const getResult = () => {
+export const getResult = async (pageInstance: Page) => {
   const res = result;
   result = [];
+  await pageInstance.close();
   return res;
 };
 const getLinkData = async (
@@ -46,20 +47,22 @@ const getLinkData = async (
   secondselector: string,
   parserFunc: any,
   browser: Browser,
+  depth: number,
 ) => {
   let links = await page.$$(selector);
   for (let linkElem of links) {
     try {
       const link = await (await linkElem.getProperty('href'))?.jsonValue();
-      console.log('Opening a new page..');
+      if (!link) break;
+      console.log('Collecting data from page: ', link);
       const page = await browser.newPage();
       if (link && typeof link === 'string') await page.goto(link);
       const res = await getPageData(page, secondselector, parserFunc);
-      if (res === false) {
+      if (!res) {
         break;
       }
-      result.push(res);
-      await page.close();
+      console.log('collected data, length: ', res.length);
+      result.push({ from: link, data: res, depth: depth });
     } catch (err) {
       console.log(err.message);
     }
@@ -91,46 +94,46 @@ export const generalScrape = async (
 ) => {
   switch (attribute) {
     case 'textContent':
-      result.push(
-        await pageInstance.$$eval(selector, (as: any[]) =>
+      result.push({
+        data: await pageInstance.$$eval(selector, (as: any[]) =>
           as.map((a: any) => a.textContent),
         ),
-      );
+      });
       break;
     case 'innerText':
-      result.push(
-        await pageInstance.$$eval(selector, (as: any[]) =>
+      result.push({
+        data: await pageInstance.$$eval(selector, (as: any[]) =>
           as.map((a: any) => a.innerText),
         ),
-      );
+      });
       break;
     case 'href':
-      result.push(
-        await pageInstance.$$eval(selector, (as: any[]) =>
+      result.push({
+        data: await pageInstance.$$eval(selector, (as: any[]) =>
           as.map((a: any) => a.href),
         ),
-      );
+      });
       break;
     case 'src':
-      result.push(
-        await pageInstance.$$eval(selector, (as: any[]) =>
+      result.push({
+        data: await pageInstance.$$eval(selector, (as: any[]) =>
           as.map((a: any) => a.src),
         ),
-      );
+      });
       break;
     default:
       if (attribute) {
-        result.push(
-          await pageInstance.$$eval(selector, (as: any[]) =>
+        result.push({
+          data: await pageInstance.$$eval(selector, (as: any[]) =>
             as.map((a: any) => (a[attribute] ? a[attribute] : a)),
           ),
-        );
+        });
       } else {
-        result.push(
-          await pageInstance.$$eval(selector, (as: any[]) =>
+        result.push({
+          data: await pageInstance.$$eval(selector, (as: any[]) =>
             as.map((a: any) => a),
           ),
-        );
+        });
       }
       break;
   }
@@ -142,10 +145,12 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
     extraPages,
     parser,
     delay,
+    limit,
     secondselector,
   } = options;
   console.log(options);
-
+  let count: number = 0;
+  let maxLimit = limit || 20;
   let parserFunc: any;
   if (parser?.length > 0) {
     parserFunc = eval(parser);
@@ -154,6 +159,8 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
     let links = await page.$$(selector);
     for (let linkElem of links) {
       try {
+        ++count;
+        if (count > maxLimit) return;
         const link = await (await linkElem.getProperty('href'))?.jsonValue();
         console.log('Opening a new page..');
         const page = await browser.newPage();
@@ -162,7 +169,7 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
         if (res === false) {
           break;
         }
-        result.push(res);
+        result.push({ from: link, data: res });
         if (extraPages) {
           for (let i = 1; i <= extraPages; i++) {
             console.log(`Opening new page number ${i}..`);
@@ -173,14 +180,14 @@ export const scrape = async (page: Page, options: any, browser: Browser) => {
               )?.jsonValue();
               const page2 = await browser.newPage();
               if (link2 && typeof link2 === 'string') await page.goto(link2);
-              const res2 = await getLinkData(
+              await getLinkData(
                 page2,
                 selector,
                 secondselector,
                 parserFunc,
                 browser,
+                i,
               );
-              result.push({ depth: i, data: res2 });
             }
           }
         }
